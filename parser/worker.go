@@ -215,17 +215,20 @@ func (w Worker) ExportCommit(commit *tmtypes.Commit, vals *tmctypes.ResultValida
 
 		valAddr := sdk.ConsAddress(commitSig.ValidatorAddress)
 		val := findValidatorByAddr(valAddr.String(), vals)
+		if val != nil {
+			signatures = append(signatures, types.NewCommitSig(
+				types.ConvertValidatorAddressToBech32String(commitSig.ValidatorAddress),
+				val.VotingPower,
+				val.ProposerPriority,
+				commit.Height,
+				commitSig.Timestamp,
+			))
+		}
 		if val == nil {
-			return fmt.Errorf("failed to find validator by commit validator address %s", valAddr.String())
+			// return fmt.Errorf("failed to find validator by commit validator address %s", valAddr.String())
+			continue
 		}
 
-		signatures = append(signatures, types.NewCommitSig(
-			types.ConvertValidatorAddressToBech32String(commitSig.ValidatorAddress),
-			val.VotingPower,
-			val.ProposerPriority,
-			commit.Height,
-			commitSig.Timestamp,
-		))
 	}
 
 	err := w.db.SaveCommitSignatures(signatures)
@@ -258,19 +261,43 @@ func (w Worker) ExportTxs(txs []*types.Tx) error {
 		}
 
 		// Handle all the messages contained inside the transaction
-		for i, msg := range tx.Body.Messages {
+		// for i, msg := range tx.Body.Messages {
+		// 	var stdMsg sdk.Msg
+		// 	err = w.codec.UnpackAny(msg, &stdMsg)
+		// 	if err != nil {
+		// 		return fmt.Errorf("error while unpacking message: %s", err)
+		// 	}
+
+		// 	// Call the handlers
+		// 	for _, module := range w.modules {
+		// 		if messageModule, ok := module.(modules.MessageModule); ok {
+		// 			err = messageModule.HandleMsg(i, stdMsg, tx)
+		// 			if err != nil {
+		// 				w.logger.MsgError(module, tx, stdMsg, err)
+		// 			}
+		// 		}
+		// 	}
+		// }
+		var stdMsgs []sdk.Msg
+		for _, msg := range tx.Body.Messages {
 			var stdMsg sdk.Msg
 			err = w.codec.UnpackAny(msg, &stdMsg)
 			if err != nil {
 				return fmt.Errorf("error while unpacking message: %s", err)
 			}
+			stdMsgs = append(stdMsgs, stdMsg)
+		}
 
+		//remove duplicated msgs
+		msgList := removeDuplicates(stdMsgs)
+
+		for i, m := range msgList {
 			// Call the handlers
 			for _, module := range w.modules {
 				if messageModule, ok := module.(modules.MessageModule); ok {
-					err = messageModule.HandleMsg(i, stdMsg, tx)
+					err = messageModule.HandleMsg(i, m, tx)
 					if err != nil {
-						w.logger.MsgError(module, tx, stdMsg, err)
+						w.logger.MsgError(module, tx, m, err)
 					}
 				}
 			}
@@ -278,4 +305,16 @@ func (w Worker) ExportTxs(txs []*types.Tx) error {
 	}
 
 	return nil
+}
+
+func removeDuplicates(intSlice []sdk.Msg) []sdk.Msg {
+	keys := make(map[sdk.Msg]bool)
+	list := []sdk.Msg{}
+	for _, entry := range intSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
