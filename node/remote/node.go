@@ -21,6 +21,7 @@ import (
 	httpclient "github.com/tendermint/tendermint/rpc/client/http"
 	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	jsonrpcclient "github.com/tendermint/tendermint/rpc/jsonrpc/client"
+	coretypes "github.com/tendermint/tendermint/types"
 )
 
 var (
@@ -140,6 +141,17 @@ func (cp *Node) BlockResults(height int64) (*tmctypes.ResultBlockResults, error)
 	return cp.client.BlockResults(cp.ctx, &height)
 }
 
+// getHash gets the correct hash if the transaction is malleated
+func getHash(transaction coretypes.Tx) string {
+	var hash []byte
+	if originalHash, _, ismalleated := coretypes.UnwrapMalleatedTx(transaction); ismalleated {
+		hash = originalHash
+	} else {
+		hash = transaction.Hash()
+	}
+	return fmt.Sprintf("%X", hash)
+}
+
 // Tx implements node.Node
 func (cp *Node) Tx(hash string) (*types.Tx, error) {
 	res, err := cp.txServiceClient.GetTx(context.Background(), &tx.GetTxRequest{Hash: hash})
@@ -168,7 +180,7 @@ func (cp *Node) Tx(hash string) (*types.Tx, error) {
 func (cp *Node) Txs(block *tmctypes.ResultBlock) ([]*types.Tx, error) {
 	txResponses := make([]*types.Tx, len(block.Block.Txs))
 	for i, tmTx := range block.Block.Txs {
-		txResponse, err := cp.Tx(fmt.Sprintf("%X", tmTx.Hash()))
+		txResponse, err := cp.Tx(getHash(tmTx))
 		if err != nil {
 			return nil, err
 		}
