@@ -121,6 +121,6 @@ require (
 replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/rs/zerolog => github.com/rs/zerolog v1.21.0
-	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v0.34.14-celestia.0.20220119223021-e54097114e14
+	github.com/tendermint/tendermint => github.com/celestiaorg/celestia-core v1.2.2-tm-v0.35.4
     github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.1.0-sdk-v0.46.0
 )
