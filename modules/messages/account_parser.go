@@ -2,7 +2,6 @@ package messages
 
 import (
 	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -142,10 +141,10 @@ func EvidenceMessagesParser(_ codec.Codec, cosmosMsg sdk.Msg) ([]string, error) 
 func GovMessagesParser(cdc codec.Codec, cosmosMsg sdk.Msg) ([]string, error) {
 	switch msg := cosmosMsg.(type) {
 
-	case *govtypes.MsgSubmitProposal:
+	case *MsgSubmitProposal:
 		addresses := []string{msg.Proposer}
 
-		var content govtypes.Content
+		var content Content
 		err := cdc.UnpackAny(msg.Content, &content)
 		if err != nil {
 			return nil, err

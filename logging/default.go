@@ -9,7 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
+	tmctypes "github.com/tendermint/tendermint/rpc/coretypes"
 
 	"github.com/forbole/juno/v3/modules"
 	"github.com/forbole/juno/v3/types"

@@ -21,14 +21,13 @@ import (
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
-	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	ctypes "github.com/tendermint/tendermint/rpc/coretypes"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/indexer"
 	blockidxkv "github.com/tendermint/tendermint/state/indexer/block/kv"
 	blockidxnull "github.com/tendermint/tendermint/state/indexer/block/null"
-	"github.com/tendermint/tendermint/state/txindex"
-	"github.com/tendermint/tendermint/state/txindex/kv"
-	"github.com/tendermint/tendermint/state/txindex/null"
+	"github.com/tendermint/tendermint/state/indexer/tx/kv"
+	"github.com/tendermint/tendermint/state/indexer/tx/null"
 	"github.com/tendermint/tendermint/store"
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -41,7 +40,7 @@ import (
 	constypes "github.com/tendermint/tendermint/consensus/types"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	tmnode "github.com/tendermint/tendermint/node"
-	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
+	tmctypes "github.com/tendermint/tendermint/rpc/coretypes"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -70,7 +69,7 @@ type Node struct {
 	stateStore     sm.Store
 	blockStore     *store.BlockStore
 	consensusState *cs.State
-	txIndexer      txindex.TxIndexer
+	txIndexer      indexer.TxIndexer
 	blockIndexer   indexer.BlockIndexer
 }
 
@@ -222,7 +221,7 @@ func createAndStartIndexerService(
 		blockIndexer = &blockidxnull.BlockerIndexer{}
 	}
 
-	indexerService := txindex.NewIndexerService(txIndexer, blockIndexer, eventBus)
+	indexerService := indexer.NewIndexerService(txIndexer, blockIndexer, eventBus)
 	indexerService.SetLogger(logger.With("module", "txindex"))
 
 	if err := indexerService.Start(); err != nil {
