@@ -4,22 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/forbole/juno/v2/logging"
+	"github.com/forbole/juno/v3/logging"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 
-	"github.com/forbole/juno/v2/database"
-	"github.com/forbole/juno/v2/types/config"
+	"github.com/forbole/juno/v3/database"
+	"github.com/forbole/juno/v3/types/config"
 
-	"github.com/forbole/juno/v2/modules"
+	"github.com/forbole/juno/v3/modules"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 
-	"github.com/forbole/juno/v2/node"
-	"github.com/forbole/juno/v2/types"
-	"github.com/forbole/juno/v2/types/utils"
+	"github.com/forbole/juno/v3/node"
+	"github.com/forbole/juno/v3/types"
+	"github.com/forbole/juno/v3/types/utils"
 )
 
 // Worker defines a job consumer that is responsible for getting and
@@ -37,12 +37,12 @@ type Worker struct {
 }
 
 // NewWorker allows to create a new Worker implementation.
-func NewWorker(index int, ctx *Context) Worker {
+func NewWorker(ctx *Context, queue types.HeightQueue, index int) Worker {
 	return Worker{
 		index:   index,
-		codec:   ctx.Codec,
+		codec:   ctx.EncodingConfig.Marshaler,
 		node:    ctx.Node,
-		queue:   ctx.Queue,
+		queue:   queue,
 		db:      ctx.Database,
 		modules: ctx.Modules,
 		logger:  ctx.Logger,
@@ -55,7 +55,7 @@ func (w Worker) Start() {
 	logging.WorkerCount.Inc()
 
 	for i := range w.queue {
-		if err := w.Process(i); err != nil {
+		if err := w.ProcessIfNotExists(i); err != nil {
 			// re-enqueue any failed job
 			// TODO: Implement exponential backoff or max retries for a block height.
 			go func() {
@@ -68,10 +68,10 @@ func (w Worker) Start() {
 	}
 }
 
-// process defines the job consumer workflow. It will fetch a block for a given
-// height and associated metadata and export it to a database. It returns an
+// ProcessIfNotExists defines the job consumer workflow. It will fetch a block for a given
+// height and associated metadata and export it to a database if it does not exist yet. It returns an
 // error if any export process fails.
-func (w Worker) Process(height int64) error {
+func (w Worker) ProcessIfNotExists(height int64) error {
 	exists, err := w.db.HasBlock(height)
 	if err != nil {
 		return fmt.Errorf("error while searching for block: %s", err)
@@ -82,6 +82,12 @@ func (w Worker) Process(height int64) error {
 		return nil
 	}
 
+	return w.Process(height)
+}
+
+// Process fetches  a block for a given height and associated metadata and export it to a database.
+// It returns an error if any export process fails.
+func (w Worker) Process(height int64) error {
 	if height == 0 {
 		cfg := config.Cfg.Parser
 
@@ -116,6 +122,22 @@ func (w Worker) Process(height int64) error {
 	}
 
 	return w.ExportBlock(block, events, txs, vals)
+}
+
+// ProcessTransactions fetches transactions for a given height and stores them into the database.
+// It returns an error if the export process fails.
+func (w Worker) ProcessTransactions(height int64) error {
+	block, err := w.node.Block(height)
+	if err != nil {
+		return fmt.Errorf("failed to get block from node: %s", err)
+	}
+
+	txs, err := w.node.Txs(block)
+	if err != nil {
+		return fmt.Errorf("failed to get transactions for block: %s", err)
+	}
+
+	return w.ExportTxs(txs)
 }
 
 // HandleGenesis accepts a GenesisDoc and calls all the registered genesis handlers

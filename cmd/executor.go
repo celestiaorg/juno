@@ -5,13 +5,14 @@ import (
 	"os"
 	"path"
 
-	"github.com/forbole/juno/v2/types/config"
+	"github.com/forbole/juno/v3/types/config"
 
-	initcmd "github.com/forbole/juno/v2/cmd/init"
-	migratecmd "github.com/forbole/juno/v2/cmd/migrate"
-	parsecmd "github.com/forbole/juno/v2/cmd/parse"
+	initcmd "github.com/forbole/juno/v3/cmd/init"
+	migratecmd "github.com/forbole/juno/v3/cmd/migrate"
+	parsecmd "github.com/forbole/juno/v3/cmd/parse"
+	startcmd "github.com/forbole/juno/v3/cmd/start"
 
-	"github.com/forbole/juno/v2/types"
+	"github.com/forbole/juno/v3/types"
 
 	"github.com/spf13/cobra"
 	"github.com/tendermint/tendermint/libs/cli"
@@ -40,9 +41,10 @@ func BuildDefaultExecutor(config *Config) cli.Executor {
 
 	rootCmd.AddCommand(
 		VersionCmd(),
-		initcmd.InitCmd(config.GetInitConfig()),
-		parsecmd.ParseCmd(config.GetParseConfig()),
-		migratecmd.MigrateCmd(),
+		initcmd.NewInitCmd(config.GetInitConfig()),
+		parsecmd.NewParseCmd(config.GetParseConfig()),
+		startcmd.NewStartCmd(config.GetParseConfig()),
+		migratecmd.NewMigrateCmd(config.GetName(), config.GetParseConfig()),
 	)
 
 	return PrepareRootCmd(config.GetName(), rootCmd)

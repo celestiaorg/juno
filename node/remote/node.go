@@ -2,21 +2,26 @@ package remote
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
+
+	tmtypes "github.com/tendermint/tendermint/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/grpc"
 
 	constypes "github.com/tendermint/tendermint/consensus/types"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 
-	"github.com/forbole/juno/v2/node"
+	"github.com/forbole/juno/v3/node"
 
 	"github.com/cosmos/cosmos-sdk/types/tx"
 
-	"github.com/forbole/juno/v2/types"
+	"github.com/forbole/juno/v3/types"
 
 	httpclient "github.com/tendermint/tendermint/rpc/client/http"
 	tmctypes "github.com/tendermint/tendermint/rpc/core/types"
@@ -35,6 +40,7 @@ type Node struct {
 	codec           codec.Codec
 	client          *httpclient.HTTP
 	txServiceClient tx.ServiceClient
+	grpcConnection  *grpc.ClientConn
 }
 
 // NewNode allows to build a new Node instance
@@ -72,12 +78,57 @@ func NewNode(cfg *Details, codec codec.Codec) (*Node, error) {
 
 		client:          rpcClient,
 		txServiceClient: tx.NewServiceClient(grpcConnection),
+		grpcConnection:  grpcConnection,
 	}, nil
 }
 
 // Genesis implements node.Node
 func (cp *Node) Genesis() (*tmctypes.ResultGenesis, error) {
-	return cp.client.Genesis(cp.ctx)
+	res, err := cp.client.Genesis(cp.ctx)
+	if err != nil && strings.Contains(err.Error(), "use the genesis_chunked API instead") {
+		return cp.getGenesisChunked()
+	}
+	return res, err
+}
+
+// getGenesisChunked gets the genesis data using the chinked API instead
+func (cp *Node) getGenesisChunked() (*tmctypes.ResultGenesis, error) {
+	bz, err := cp.getGenesisChunksStartingFrom(0)
+	if err != nil {
+		return nil, err
+	}
+
+	var genDoc *tmtypes.GenesisDoc
+	err = tmjson.Unmarshal(bz, &genDoc)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tmctypes.ResultGenesis{Genesis: genDoc}, nil
+}
+
+// getGenesisChunksStartingFrom returns all the genesis chunks data starting from the chunk with the given id
+func (cp *Node) getGenesisChunksStartingFrom(id uint) ([]byte, error) {
+	res, err := cp.client.GenesisChunked(cp.ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting genesis chunk %d out of %d", id, res.TotalChunks)
+	}
+
+	bz, err := base64.StdEncoding.DecodeString(res.Data)
+	if err != nil {
+		return nil, fmt.Errorf("error while decoding genesis chunk %d out of %d", id, res.TotalChunks)
+	}
+
+	if id == uint(res.TotalChunks-1) {
+		return bz, nil
+	}
+
+	nextChunk, err := cp.getGenesisChunksStartingFrom(id + 1)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(bz, nextChunk...), nil
 }
 
 // ConsensusState implements node.Node
@@ -113,7 +164,7 @@ func (cp *Node) Validators(height int64) (*tmctypes.ResultValidators, error) {
 	}
 
 	page := 1
-	perPage := 100
+	perPage := 100 // maximum 100 entries per page
 	stop := false
 	for !stop {
 		result, err := cp.client.Validators(cp.ctx, &height, &page, &perPage)
@@ -123,9 +174,8 @@ func (cp *Node) Validators(height int64) (*tmctypes.ResultValidators, error) {
 		vals.Validators = append(vals.Validators, result.Validators...)
 		vals.Count += result.Count
 		vals.Total = result.Total
-
 		page += 1
-		stop = vals.Count == len(vals.Validators)
+		stop = vals.Count == vals.Total
 	}
 
 	return vals, nil
@@ -213,5 +263,10 @@ func (cp *Node) Stop() {
 	err := cp.client.Stop()
 	if err != nil {
 		panic(fmt.Errorf("error while stopping proxy: %s", err))
+	}
+
+	err = cp.grpcConnection.Close()
+	if err != nil {
+		panic(fmt.Errorf("error while closing gRPC connection: %s", err))
 	}
 }

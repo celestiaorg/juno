@@ -1,8 +1,8 @@
 package telemetry
 
 import (
-	"github.com/forbole/juno/v2/modules"
-	"github.com/forbole/juno/v2/types/config"
+	"github.com/forbole/juno/v3/modules"
+	"github.com/forbole/juno/v3/types/config"
 )
 
 const (
@@ -21,7 +21,12 @@ type Module struct {
 
 // NewModule returns a new Module implementation
 func NewModule(cfg config.Config) *Module {
-	telemetryCfg, err := ParseConfig(cfg.GetBytes())
+	bz, err := cfg.GetBytes()
+	if err != nil {
+		panic(err)
+	}
+
+	telemetryCfg, err := ParseConfig(bz)
 	if err != nil {
 		panic(err)
 	}

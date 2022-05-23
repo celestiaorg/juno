@@ -5,10 +5,10 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 
-	"github.com/forbole/juno/v2/node"
-	nodeconfig "github.com/forbole/juno/v2/node/config"
-	"github.com/forbole/juno/v2/node/local"
-	"github.com/forbole/juno/v2/node/remote"
+	"github.com/forbole/juno/v3/node"
+	nodeconfig "github.com/forbole/juno/v3/node/config"
+	"github.com/forbole/juno/v3/node/local"
+	"github.com/forbole/juno/v3/node/remote"
 )
 
 func BuildNode(cfg nodeconfig.Config, encodingConfig *params.EncodingConfig) (node.Node, error) {
@@ -17,6 +17,8 @@ func BuildNode(cfg nodeconfig.Config, encodingConfig *params.EncodingConfig) (no
 		return remote.NewNode(cfg.Details.(*remote.Details), encodingConfig.Marshaler)
 	case nodeconfig.TypeLocal:
 		return local.NewNode(cfg.Details.(*local.Details), encodingConfig.TxConfig, encodingConfig.Marshaler)
+	case nodeconfig.TypeNone:
+		return nil, nil
 
 	default:
 		return nil, fmt.Errorf("invalid node type: %s", cfg.Type)

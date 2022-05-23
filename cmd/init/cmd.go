@@ -2,9 +2,10 @@ package init
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
-	"github.com/forbole/juno/v2/types/config"
+	"github.com/forbole/juno/v3/types/config"
 
 	"github.com/spf13/cobra"
 )
@@ -13,8 +14,8 @@ const (
 	flagReplace = "replace"
 )
 
-// InitCmd returns the command that should be run in order to properly initialize BDJuno
-func InitCmd(cfg *Config) *cobra.Command {
+// NewInitCmd returns the command that should be run in order to properly initialize Juno
+func NewInitCmd(cfg *Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initializes the configuration files",
@@ -45,11 +46,21 @@ func InitCmd(cfg *Config) *cobra.Command {
 
 			// Get the config from the flags
 			yamlCfg := cfg.GetConfigCreator()(cmd)
-			return config.Write(yamlCfg, configFilePath)
+			return writeConfig(yamlCfg, configFilePath)
 		},
 	}
 
 	cmd.Flags().Bool(flagReplace, false, "overrides any existing configuration")
 
 	return cmd
+}
+
+// writeConfig allows to write the given configuration into the file present at the given path
+func writeConfig(cfg WritableConfig, path string) error {
+	bz, err := cfg.GetBytes()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path, bz, 0600)
 }

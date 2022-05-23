@@ -1,10 +1,10 @@
-package parse
+package types
 
 import (
 	"github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/forbole/juno/v2/types/config"
+	"github.com/forbole/juno/v3/types/config"
 )
 
 // SdkConfigSetup represents a method that allows to customize the given sdk.Config.
