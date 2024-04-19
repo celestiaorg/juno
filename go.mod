@@ -27,8 +27,7 @@ require (
 	github.com/tendermint/tendermint v0.34.13
 	github.com/tendermint/tm-db v0.6.4
 	go.etcd.io/bbolt v1.3.6 // indirect
-	golang.org/x/net v0.0.0-20210924151903-3ad01bbaa167 // indirect
-	golang.org/x/sys v0.0.0-20210927052749-1cf2251ac284 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	google.golang.org/grpc v1.40.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
